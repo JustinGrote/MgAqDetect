@@ -44,7 +44,7 @@ public class AqFeedbackProvider : IFeedbackProvider
 
   public string Description { get; } = "Detects when you have used Microsoft Graph commands that require additional Advanced Query parameters and warns you of the same";
 
-  FeedbackTrigger IFeedbackProvider.Trigger { get; } = FeedbackTrigger.Success;
+  FeedbackTrigger IFeedbackProvider.Trigger { get; } = FeedbackTrigger.Success & FeedbackTrigger.Error;
 
   public FeedbackItem? GetFeedback(FeedbackContext context, CancellationToken token)
     => GetFeedbackImpl(new PSFeedbackContextAdapter(context));
@@ -56,7 +56,6 @@ public class AqFeedbackProvider : IFeedbackProvider
   ///
   internal FeedbackItem? GetFeedbackImpl(FeedbackContextAdapter context)
   {
-    Console.WriteLine("GetFeedback!");
     var graphCommands = FindMicrosoftGraphCommands(context.CommandLineAst)
       .Where(TestAdvancedQueryNeeded);
 
@@ -80,18 +79,6 @@ public class AqFeedbackProvider : IFeedbackProvider
     );
 }
 
-/// <summary>
-/// A feedback provider specifically for handling cases where an error was returned
-/// </summary>
-public class AqErrorFeedbackProvider : AqFeedbackProvider, IFeedbackProvider
-{
-  new public string Name
-  {
-    get { return base.Name + " Errors"; }
-  }
-  FeedbackTrigger IFeedbackProvider.Trigger { get; } = FeedbackTrigger.Error;
-}
-
 public static class AdvancedQueryFeedbackMessages
 {
   public const string AdvancedQueryHeader = "The following command combinations were detected as needing Advanced Query Capabilities. Ensure you add -CountVariable CountVar and -ConsistencyLevel Eventual to these commands or you may get unexpected errors or empty results";
@@ -102,22 +89,15 @@ public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup
 {
   // Uniquely identifies this provider. This could be randomly generated but having it static helps with tracing/troubleshooting
   Guid ProviderId { get; } = new Guid("c58b84a7-bc73-4bbc-a540-5f5d031cfb0a");
-  Guid ErrorProviderId { get; } = new Guid("8c8c1a25-22ae-46f9-bfb0-0571ae05ba8c");
-
-
   private AqFeedbackProvider? _provider;
   AqFeedbackProvider provider => _provider ??= new() { Id = ProviderId };
-  private AqErrorFeedbackProvider? _errorProvider;
-  AqErrorFeedbackProvider errorProvider => _errorProvider ??= new() { Id = ErrorProviderId };
 
   public void OnImport()
   {
     RegisterSubsystem(FeedbackProvider, provider);
-    RegisterSubsystem(FeedbackProvider, errorProvider);
   }
   public void OnRemove(PSModuleInfo psModuleInfo)
   {
     UnregisterSubsystem<IFeedbackProvider>(ProviderId);
-    UnregisterSubsystem<IFeedbackProvider>(ErrorProviderId);
   }
 }
