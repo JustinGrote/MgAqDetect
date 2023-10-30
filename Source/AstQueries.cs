@@ -1,9 +1,8 @@
-using System;
-using System.Collections;
 using System.Management.Automation.Language;
 
 using static System.StringComparison;
-namespace JMg;
+
+namespace MicrosoftGraphAdvancedQueryFeedbackProvider;
 
 public static class AstExtensions
 {

@@ -1,9 +1,10 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Management.Automation;
 using System.Management.Automation.Subsystem.Feedback;
 using static System.Management.Automation.Subsystem.SubsystemManager;
 using static System.Management.Automation.Subsystem.SubsystemKind;
-using static JMg.MgAstQueries;
+using static MicrosoftGraphAdvancedQueryFeedbackProvider.MgAstQueries;
 using System.Management.Automation.Language;
 [assembly: InternalsVisibleTo("Test")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
@@ -19,7 +20,10 @@ interface FeedbackContextAdapter
   public Ast CommandLineAst { get; }
   public IReadOnlyList<Token> CommandLineTokens { get; }
   public string CurrentLocation { get; }
-  public ErrorRecord? LastError { get; }
+  // ErrorRecord Invocation is not easily constructed so we abstract these to make it more testable.
+  public string? ErrorCommand { get; }
+  public string? ErrorId { get; }
+  public object? ErrorTarget { get; }
 }
 
 class PSFeedbackContextAdapter(FeedbackContext context) : FeedbackContextAdapter
@@ -28,7 +32,9 @@ class PSFeedbackContextAdapter(FeedbackContext context) : FeedbackContextAdapter
   public string CommandLine => context.CommandLine;
   public IReadOnlyList<Token> CommandLineTokens => context.CommandLineTokens;
   public string CurrentLocation => context.CurrentLocation.ToString();
-  public ErrorRecord? LastError => context.LastError;
+  public string? ErrorCommand => context.LastError?.InvocationInfo.Statement;
+  public string? ErrorId => context.LastError?.FullyQualifiedErrorId;
+  public object? ErrorTarget => context.LastError?.TargetObject;
 }
 
 /// <summary>
@@ -44,7 +50,7 @@ public class AqFeedbackProvider : IFeedbackProvider
 
   public string Description { get; } = "Detects when you have used Microsoft Graph commands that require additional Advanced Query parameters and warns you of the same";
 
-  FeedbackTrigger IFeedbackProvider.Trigger { get; } = FeedbackTrigger.Success & FeedbackTrigger.Error;
+  FeedbackTrigger IFeedbackProvider.Trigger { get; } = FeedbackTrigger.All;
 
   public FeedbackItem? GetFeedback(FeedbackContext context, CancellationToken token)
     => GetFeedbackImpl(new PSFeedbackContextAdapter(context));
@@ -56,8 +62,20 @@ public class AqFeedbackProvider : IFeedbackProvider
   ///
   internal FeedbackItem? GetFeedbackImpl(FeedbackContextAdapter context)
   {
-    var graphCommands = FindMicrosoftGraphCommands(context.CommandLineAst)
-      .Where(TestAdvancedQueryNeeded);
+    Console.WriteLine("<<GetFeedbackImpl>>");
+    HashSet<string> graphCommands = new HashSet<string>();
+    if (context.ErrorId is not null)
+    {
+      var result = InspectGraphError(context.ErrorId, context.ErrorTarget, context.ErrorCommand);
+      if (result is not null)
+        graphCommands.Add(result);
+    }
+
+    FindMicrosoftGraphCommands(context.CommandLineAst)
+      .Where(TestAdvancedQueryNeeded)
+      .Select(c => c.ToString())
+      .ToList()
+      .ForEach(c => graphCommands.Add(c));
 
     if (!graphCommands.Any())
       return null;
@@ -68,18 +86,42 @@ public class AqFeedbackProvider : IFeedbackProvider
   }
 
   /// <summary>
+  /// Inspects the last error to see if it is a Graph error that needs Advanced Query
+  /// </summary>
+  string? InspectGraphError(string fullyQualifiedErrorId, object? targetObject, string? statement)
+  {
+    var errorCode = fullyQualifiedErrorId.Split(',')[0];
+
+    if (errorCode == "Request_BadRequest")
+    {
+      // TargetObject is an anonyous type so we have to use reflection to get this value
+      string? filter = targetObject?.GetType().GetProperty("Filter")?.GetValue
+      (targetObject, null) as string;
+      if (filter is not null)
+      {
+        if (filter.Contains("/$count"))
+        {
+          return statement;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /// <summary>
   /// Generates an Advanced Query FeedBackItem with the header and footer pre-populated
   /// </summary>
   static public FeedbackItem CreateAqFeedbackItem(IEnumerable<string> commands)
-    => new(
-      AdvancedQueryFeedbackMessages.AdvancedQueryHeader,
+  => new(
+      Strings.AdvancedQueryHeader,
       commands.ToList(),
-      AdvancedQueryFeedbackMessages.AdvancedQueryFooter,
+      Strings.AdvancedQueryFooter,
       FeedbackDisplayLayout.Portrait
     );
 }
 
-public static class AdvancedQueryFeedbackMessages
+public static class Strings
 {
   public const string AdvancedQueryHeader = "The following command combinations were detected as needing Advanced Query Capabilities. Ensure you add -CountVariable CountVar and -ConsistencyLevel Eventual to these commands or you may get unexpected errors or empty results";
   public const string AdvancedQueryFooter = "More: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=powershell";
