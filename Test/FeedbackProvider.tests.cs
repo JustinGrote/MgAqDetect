@@ -44,7 +44,7 @@ public class FeedbackProviderErrorTests
 {
   [Theory]
   [ClassData(typeof(FeedbackProviderErrorTestsData))]
-  public void GetFeedback_ReturnsCorrectResult(string script, string filter, string errorId, FeedbackItem? expected)
+  public void GetFeedback_ReturnsCorrectResult(string script, string filter, string errorId, string errorMessage, FeedbackItem? expected)
   {
     // Arrange
     AqFeedbackProvider provider = new();
@@ -53,6 +53,7 @@ public class FeedbackProviderErrorTests
     contextMock.CommandLineAst.Returns(ScriptBlock.Create(script).Ast);
     contextMock.ErrorId.Returns(errorId);
     contextMock.ErrorCommand.Returns(script);
+    contextMock.ErrorMessage.Returns(errorMessage);
     contextMock.ErrorTarget.Returns(new
     {
       Filter = filter
@@ -66,10 +67,40 @@ public class FeedbackProviderErrorTests
   }
 }
 
-public class FeedbackProviderErrorTestsData : TheoryData<string, string, string, FeedbackItem?>
+public class FeedbackProviderErrorTestsData : TheoryData<string, string, string, string, FeedbackItem?>
 {
   public FeedbackProviderErrorTestsData()
   {
-    Add(@"Get-MgUser -Filter assignedLicenses/$count eq 0", "assignedLicenses/$count eq 0", "Request_BadRequest,Get_MgUser", CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"]));
+    // Use of $count in a filter expression
+    Add(
+      @"Get-MgUser -Filter assignedLicenses/$count eq 0",
+      "assignedLicenses/$count eq 0",
+      "Request_BadRequest,Get_MgUser",
+      "FakeMessage",
+      CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"])
+    );
+    Add(
+      @"Get-MgUser -Filter assignedLicenses/$count eq 0 -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
+
+    // Use of $search
+    Add(
+      @"Get-MgUser -Search ""displayName:John""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      @"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'",
+      CreateAqFeedbackItem([@"Get-MgUser -Search ""displayName:John"""])
+    );
+    Add(
+      @"Get-MgUser -Search ""displayName:John"" -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
   }
 }

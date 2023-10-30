@@ -1,5 +1,4 @@
-﻿using System.Reflection;
-using System.Runtime.CompilerServices;
+﻿using System.Runtime.CompilerServices;
 using System.Management.Automation;
 using System.Management.Automation.Subsystem.Feedback;
 using static System.Management.Automation.Subsystem.SubsystemManager;
@@ -22,6 +21,7 @@ interface FeedbackContextAdapter
   public string CurrentLocation { get; }
   // ErrorRecord Invocation is not easily constructed so we abstract these to make it more testable.
   public string? ErrorCommand { get; }
+  public string? ErrorMessage { get; }
   public string? ErrorId { get; }
   public object? ErrorTarget { get; }
 }
@@ -33,6 +33,7 @@ class PSFeedbackContextAdapter(FeedbackContext context) : FeedbackContextAdapter
   public IReadOnlyList<Token> CommandLineTokens => context.CommandLineTokens;
   public string CurrentLocation => context.CurrentLocation.ToString();
   public string? ErrorCommand => context.LastError?.InvocationInfo.Statement;
+  public string? ErrorMessage => context.LastError?.ErrorDetails.Message;
   public string? ErrorId => context.LastError?.FullyQualifiedErrorId;
   public object? ErrorTarget => context.LastError?.TargetObject;
 }
@@ -66,7 +67,7 @@ public class AqFeedbackProvider : IFeedbackProvider
     HashSet<string> graphCommands = new HashSet<string>();
     if (context.ErrorId is not null)
     {
-      var result = InspectGraphError(context.ErrorId, context.ErrorTarget, context.ErrorCommand);
+      var result = InspectGraphError(context.ErrorId, context.ErrorMessage, context.ErrorTarget, context.ErrorCommand);
       if (result is not null)
         graphCommands.Add(result);
     }
@@ -88,7 +89,7 @@ public class AqFeedbackProvider : IFeedbackProvider
   /// <summary>
   /// Inspects the last error to see if it is a Graph error that needs Advanced Query
   /// </summary>
-  string? InspectGraphError(string fullyQualifiedErrorId, object? targetObject, string? statement)
+  string? InspectGraphError(string fullyQualifiedErrorId, string? errorMessage, object? targetObject, string? statement)
   {
     var errorCode = fullyQualifiedErrorId.Split(',')[0];
 
@@ -103,7 +104,16 @@ public class AqFeedbackProvider : IFeedbackProvider
         {
           return statement;
         }
+
+        if (filter.Contains)
       }
+    }
+
+    if (errorCode == "Request_UnsupportedQuery")
+    {
+      // Use of $search
+      if (errorMessage is not null && errorMessage.Contains(@"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'"))
+        return statement;
     }
 
     return null;
