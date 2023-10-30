@@ -104,8 +104,6 @@ public class AqFeedbackProvider : IFeedbackProvider
         {
           return statement;
         }
-
-        if (filter.Contains)
       }
     }
 
