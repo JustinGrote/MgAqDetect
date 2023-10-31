@@ -138,6 +138,11 @@ public class AqFeedbackProvider : IFeedbackProvider
         // Use of filter with ne operator
         if (errorMessage.Contains(NotEqualsMatch))
           return statement;
+
+        // Various property errors
+        // TODO: Check the individual property name support
+        if (errorMessage.Contains(UnsupportedOrInvalidError))
+          return statement;
       }
     }
 
@@ -164,8 +169,8 @@ public static class Strings
   public const string FilterEndsWithError = $"Operator 'endsWith' is not supported because the 'ConsistencyLevel:eventual' header is missing.";
   public const string SortingNotSupportedError = @"Sorting not supported for current query";
   public const string ConsistencyHeaderMissingError = @"is not supported because the 'ConsistencyLevel:eventual' header is missing.";
-
   public const string NotEqualsMatch = @"Filter operator 'NotEqualsMatch' is not supported.";
+  public const string UnsupportedOrInvalidError = @"Unsupported or invalid query filter clause specified for property";
 }
 
 public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup
