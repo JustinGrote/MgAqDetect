@@ -15,3 +15,4 @@ https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http#query-sce
 | Use of `$count` as a filter expression | ✅ |
 | Use of `$search` | ✅ |
 | Use of `$filter` with the `endsWith` operator | ✅ |
+| Use of `$filter` and `orderBy` in the same query | ✅ |

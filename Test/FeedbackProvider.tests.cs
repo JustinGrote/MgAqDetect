@@ -121,6 +121,20 @@ public class FeedbackProviderErrorTestsData : TheoryData<string, string, string,
       null
     );
 
-
+    // Use of $filter and $orderby in the same query
+    Add(
+      @"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      SortingNotSupportedError,
+      CreateAqFeedbackItem([@"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname"""])
+    );
+    Add(
+      @"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname"" -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
   }
 }

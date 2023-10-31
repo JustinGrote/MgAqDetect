@@ -62,15 +62,15 @@ public static class MgAstQueries
     var parameters = ast.FindAll<CommandParameterAst>().Select(parameter => parameter.ParameterName).ToList();
 
     // If the command has ConsistencyLevel and CountVariable already specified return false
-    if (parameters.Contains("ConsistencyLevel") && parameters.Contains("CountVariable"))
+    if (parameters.Contains("ConsistencyLevel", StringComparer.OrdinalIgnoreCase) && parameters.Contains("CountVariable", StringComparer.OrdinalIgnoreCase))
       return false;
 
     // If the command only has CountVariable specified, it also needs ConsistencyLevel
-    if (parameters.Contains("CountVariable"))
+    if (parameters.Contains("CountVariable", StringComparer.OrdinalIgnoreCase))
       return true;
 
     // If the command has both Filter and OrderBy
-    if (parameters.Contains("Filter") && parameters.Contains("OrderBy"))
+    if (parameters.Contains("Filter", StringComparer.OrdinalIgnoreCase) && parameters.Contains("OrderBy", StringComparer.OrdinalIgnoreCase))
       return true;
 
     return false;

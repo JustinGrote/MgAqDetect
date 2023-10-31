@@ -111,13 +111,28 @@ public class AqFeedbackProvider : IFeedbackProvider
 
     if (errorCode == "Request_UnsupportedQuery")
     {
-      // Use of $search
-      if (errorMessage is not null && errorMessage.Contains(SearchUnsupportedError))
-        return statement;
+      if (errorMessage is not null)
+      {
+        // Use of $search
+        if (errorMessage.Contains(SearchUnsupportedError))
+          return statement;
 
-      // Use of $filter in endsWith
-      if (errorMessage is not null && errorMessage.Contains(FilterEndsWithError))
-        return statement;
+        // Use of $filter in endsWith
+        if (errorMessage.Contains(FilterEndsWithError))
+          return statement;
+
+        if (errorMessage.Contains(SortingNotSupportedError))
+        {
+          // Use of $filter and $orderby in the same query
+          // TODO: This may match incorrectly in a complicated script, we should verify the commands we search are graph ones only.
+          var parameters = ScriptBlock.Create(statement).Ast.FindAll<CommandParameterAst>().Select(parameter => parameter.ParameterName).ToList();
+
+          if (parameters.Contains("OrderBy", StringComparer.OrdinalIgnoreCase))
+            return statement;
+
+          return null;
+        }
+      }
     }
 
     return null;
@@ -141,6 +156,7 @@ public static class Strings
   public const string AdvancedQueryFooter = "More: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=powershell";
   public const string SearchUnsupportedError = @"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'";
   public const string FilterEndsWithError = @"Operator 'endsWith' is not supported because the 'ConsistencyLevel:eventual' header is missing.";
+  public const string SortingNotSupportedError = @"Sorting not supported for current query";
 }
 
 public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup
