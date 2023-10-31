@@ -69,6 +69,10 @@ public static class MgAstQueries
     if (parameters.Contains("CountVariable"))
       return true;
 
+    // If the command has both Filter and OrderBy
+    if (parameters.Contains("Filter") && parameters.Contains("OrderBy"))
+      return true;
+
     return false;
   }
 }

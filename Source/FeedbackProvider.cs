@@ -1,10 +1,12 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Management.Automation;
+using System.Management.Automation.Language;
 using System.Management.Automation.Subsystem.Feedback;
 using static System.Management.Automation.Subsystem.SubsystemManager;
 using static System.Management.Automation.Subsystem.SubsystemKind;
 using static MicrosoftGraphAdvancedQueryFeedbackProvider.MgAstQueries;
-using System.Management.Automation.Language;
+using static MicrosoftGraphAdvancedQueryFeedbackProvider.Strings;
+
 [assembly: InternalsVisibleTo("Test")]
 [assembly: InternalsVisibleTo("DynamicProxyGenAssembly2")]
 
@@ -99,6 +101,7 @@ public class AqFeedbackProvider : IFeedbackProvider
       (targetObject, null) as string;
       if (filter is not null)
       {
+        // Use of $count in a filter expression
         if (filter.Contains("/$count"))
         {
           return statement;
@@ -109,7 +112,11 @@ public class AqFeedbackProvider : IFeedbackProvider
     if (errorCode == "Request_UnsupportedQuery")
     {
       // Use of $search
-      if (errorMessage is not null && errorMessage.Contains(@"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'"))
+      if (errorMessage is not null && errorMessage.Contains(SearchUnsupportedError))
+        return statement;
+
+      // Use of $filter in endsWith
+      if (errorMessage is not null && errorMessage.Contains(FilterEndsWithError))
         return statement;
     }
 
@@ -121,9 +128,9 @@ public class AqFeedbackProvider : IFeedbackProvider
   /// </summary>
   static public FeedbackItem CreateAqFeedbackItem(IEnumerable<string> commands)
   => new(
-      Strings.AdvancedQueryHeader,
+      AdvancedQueryHeader,
       commands.ToList(),
-      Strings.AdvancedQueryFooter,
+      AdvancedQueryFooter,
       FeedbackDisplayLayout.Portrait
     );
 }
@@ -132,6 +139,8 @@ public static class Strings
 {
   public const string AdvancedQueryHeader = "The following command combinations were detected as needing Advanced Query Capabilities. Ensure you add -CountVariable CountVar and -ConsistencyLevel Eventual to these commands or you may get unexpected errors or empty results";
   public const string AdvancedQueryFooter = "More: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=powershell";
+  public const string SearchUnsupportedError = @"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'";
+  public const string FilterEndsWithError = @"Operator 'endsWith' is not supported because the 'ConsistencyLevel:eventual' header is missing.";
 }
 
 public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup

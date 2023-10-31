@@ -10,7 +10,8 @@ https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http#query-sce
 
 | Description | Implemented |
 | ----------- | ----------- |
-| Use of `$count`` as a URL segment	| Not used in Graph Commands |
-| Use of `$count`` as a query string parameter | ✅ |
-| Use of `$count`` as a filter expression | ✅ |
-| Use of `$search`` as a filter expression | ✅ |
+| Use of `$count` as a URL segment| Not used in Graph Commands |
+| Use of `$count` as a query string parameter | ✅ |
+| Use of `$count` as a filter expression | ✅ |
+| Use of `$search` | ✅ |
+| Use of `$filter` with the `endsWith` operator | ✅ |

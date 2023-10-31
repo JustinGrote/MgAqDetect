@@ -22,4 +22,8 @@
       ExcludeAssets="ContentFiles" PrivateAssets="All" />
   </ItemGroup>
 
+  <Target Name="CopyPsd1ToRelease" AfterTargets="Publish">
+    <Copy SourceFiles="MgAqDetect.psd1" DestinationFolder="$(PublishDir)" />
+  </Target>
+
 </Project>

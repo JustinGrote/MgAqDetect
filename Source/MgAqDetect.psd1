@@ -9,7 +9,7 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-RootModule = './MgAdvancedQueryFeedbackProvider.dll'
+RootModule    = './MgAqDetect.dll'
 
 # Version number of this module.
 ModuleVersion = '0.0.0'
@@ -98,19 +98,19 @@ PrivateData = @{
         # Tags = @()
 
         # A URL to the license for this module.
-        # LicenseUri = ''
+            LicenseUri = 'https://github.com/JustinGrote/MgAqDetect/blob/main/LICENSE'
 
-        # A URL to the main website for this project.
-        ProjectUri = 'https://github.com/JustinGrote/MgAdvancedQueryFeedbackProvider'
+            # A URL to the main website for this project.
+            ProjectUri = 'https://github.com/JustinGrote/MgAqDetect'
 
-        # A URL to an icon representing this module.
-        # IconUri = ''
+            # A URL to an icon representing this module.
+            # IconUri = ''
 
-        # ReleaseNotes of this module
-        # ReleaseNotes = ''
+            # ReleaseNotes of this module
+            # ReleaseNotes = ''
 
-        # Prerelease string of this module
-        # Prerelease = ''
+            # Prerelease string of this module
+            Prerelease = 'SOURCE'
 
         # Flag to indicate whether the module requires explicit user acceptance for install/update/save
         # RequireLicenseAcceptance = $false

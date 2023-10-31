@@ -1,8 +1,11 @@
 
 using MicrosoftGraphAdvancedQueryFeedbackProvider;
-using static MicrosoftGraphAdvancedQueryFeedbackProvider.AqFeedbackProvider;
+
 using System.Management.Automation;
 using System.Management.Automation.Subsystem.Feedback;
+
+using static MicrosoftGraphAdvancedQueryFeedbackProvider.AqFeedbackProvider;
+using static MicrosoftGraphAdvancedQueryFeedbackProvider.Strings;
 
 namespace Test;
 
@@ -91,7 +94,7 @@ public class FeedbackProviderErrorTestsData : TheoryData<string, string, string,
       @"Get-MgUser -Search ""displayName:John""",
       string.Empty,
       "Request_UnsupportedQuery,Get_MgUser",
-      @"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'",
+      SearchUnsupportedError,
       CreateAqFeedbackItem([@"Get-MgUser -Search ""displayName:John"""])
     );
     Add(
@@ -101,5 +104,23 @@ public class FeedbackProviderErrorTestsData : TheoryData<string, string, string,
       string.Empty,
       null
     );
+
+    // Use of $endsWith
+    Add(
+      @"Get-MgUser -filter ""endsWith(mail, '@outlook.com')""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      FilterEndsWithError,
+      CreateAqFeedbackItem([@"Get-MgUser -filter ""endsWith(mail, '@outlook.com')"""])
+    );
+    Add(
+      @"Get-MgUser -filter ""endsWith(mail, '@outlook.com')"" -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
+
+
   }
 }
