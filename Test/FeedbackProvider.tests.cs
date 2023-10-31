@@ -136,5 +136,54 @@ public class FeedbackProviderErrorTestsData : TheoryData<string, string, string,
       string.Empty,
       null
     );
+
+    // Use of ne operator
+    Add(
+      @"Get-MgUser -filter ""displayname ne null""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      NotEqualsMatch,
+      CreateAqFeedbackItem([@"Get-MgUser -filter ""displayname ne null"""])
+    );
+    Add(
+      @"Get - MgUser - filter ""displayname ne null""-CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
+
+    // Use of NOT operator
+    Add(
+      @"Get-MgUser -filter ""NOT(displayname eq 'test')""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      ConsistencyHeaderMissingError,
+      CreateAqFeedbackItem([@"Get-MgUser -filter ""NOT(displayname eq 'test')"""])
+    );
+    Add(
+      @"Get-MgUser -filter ""NOT(displayname eq 'test')"" -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
+
+    // Use of NOT and StartsWith operator
+    Add(
+      @"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))""",
+      string.Empty,
+      "Request_UnsupportedQuery,Get_MgUser",
+      ConsistencyHeaderMissingError,
+      CreateAqFeedbackItem([@"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))"""])
+    );
+    Add(
+      @"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))"" -CountVariable cv -ConsistencyLevel Eventual",
+      string.Empty,
+      string.Empty,
+      string.Empty,
+      null
+    );
+
   }
 }

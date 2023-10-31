@@ -118,7 +118,9 @@ public class AqFeedbackProvider : IFeedbackProvider
           return statement;
 
         // Use of $filter in endsWith
-        if (errorMessage.Contains(FilterEndsWithError))
+        // Use of $filter with not operator
+        // Use of $filter with not and StartWith
+        if (errorMessage.Contains(ConsistencyHeaderMissingError))
           return statement;
 
         if (errorMessage.Contains(SortingNotSupportedError))
@@ -132,6 +134,10 @@ public class AqFeedbackProvider : IFeedbackProvider
 
           return null;
         }
+
+        // Use of filter with ne operator
+        if (errorMessage.Contains(NotEqualsMatch))
+          return statement;
       }
     }
 
@@ -155,8 +161,11 @@ public static class Strings
   public const string AdvancedQueryHeader = "The following command combinations were detected as needing Advanced Query Capabilities. Ensure you add -CountVariable CountVar and -ConsistencyLevel Eventual to these commands or you may get unexpected errors or empty results";
   public const string AdvancedQueryFooter = "More: https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=powershell";
   public const string SearchUnsupportedError = @"Request with $search query parameter only works through MSGraph with a special request header: 'ConsistencyLevel: eventual'";
-  public const string FilterEndsWithError = @"Operator 'endsWith' is not supported because the 'ConsistencyLevel:eventual' header is missing.";
+  public const string FilterEndsWithError = $"Operator 'endsWith' is not supported because the 'ConsistencyLevel:eventual' header is missing.";
   public const string SortingNotSupportedError = @"Sorting not supported for current query";
+  public const string ConsistencyHeaderMissingError = @"is not supported because the 'ConsistencyLevel:eventual' header is missing.";
+
+  public const string NotEqualsMatch = @"Filter operator 'NotEqualsMatch' is not supported.";
 }
 
 public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup

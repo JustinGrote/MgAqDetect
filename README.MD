@@ -16,3 +16,10 @@ https://learn.microsoft.com/en-us/graph/aad-advanced-queries?tabs=http#query-sce
 | Use of `$search` | ✅ |
 | Use of `$filter` with the `endsWith` operator | ✅ |
 | Use of `$filter` and `orderBy` in the same query | ✅ |
+| Use of `$filter` with `ne` and `not` operators | ✅ |
+| Use of `$filter` with `not` and `startsWith` operators | ✅ |
+| Use of OData cast with transitive members list | Not Used in Graph Commands |
+
+## Building
+
+`dotnet publish` will put the entire module in the `Release` directory.
