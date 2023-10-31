@@ -3,7 +3,6 @@ using MicrosoftGraphAdvancedQueryFeedbackProvider;
 using static MicrosoftGraphAdvancedQueryFeedbackProvider.AqFeedbackProvider;
 using System.Management.Automation;
 using System.Management.Automation.Subsystem.Feedback;
-using System.Management.Automation.Language;
 
 namespace Test;
 

@@ -30,7 +30,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Source\MgAdvancedQueryFeedbackProvider.csproj" />
+    <ProjectReference Include="..\Source\MgAqDetect.csproj" />
   </ItemGroup>
 
 </Project>
