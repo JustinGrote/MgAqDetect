@@ -68,8 +68,44 @@ public record FakeTargetObject(string Filter);
 
 public class FeedbackProviderTestsData : TheoryData<string, string, FeedbackItem?>
 {
+  /// <summary>
+  /// Creates a function mock that accepts any parameters
+  /// </summary>
+  const string CommandMockTemplate = @"function {0} {{
+    [CmdletBinding()]
+    param(
+      [Parameter(ValueFromRemainingArguments=$true)]
+      [string]$CapturedArgs
+    )
+    {1}
+  }}";
+
+  /// <summary>
+  /// This is needed to make the InvocationInfo get generated properly for the command test
+  /// </summary>
+  const string ErrorActionTemplate = @"
+    $ErrorRecord = [Management.Automation.ErrorRecord]::new(
+      [Exception]::new('{0}'),
+      '{1}',
+      'InvalidOperation',
+      $({2})
+    )
+    $PSCmdlet.ThrowTerminatingError($ErrorRecord)
+  ";
+
+  string GetCommandMock(string command, string? action)
+  => string.Format(CommandMockTemplate, command, action);
+
+  string GetErrorMock(string command, string? message, string? errorId, string? targetObjectScript)
+  => GetCommandMock(command, string.Format(ErrorActionTemplate, message?.Replace("'", "''"), errorId, targetObjectScript));
+
+  string GetErrorMockWithFilter(string command, string? message, string? errorId, string? filter)
+  => GetErrorMock(command, message, errorId, $"[Test.FakeTargetObject]::new('{filter?.Replace("'", "''")}')");
+
   public FeedbackProviderTestsData()
   {
+    string script;
+    string getMgUserMock = GetCommandMock("Get-MgUser", null);
     // No feedback needed
     Add(
       "function Get-Nothing {}",
@@ -94,132 +130,136 @@ public class FeedbackProviderTestsData : TheoryData<string, string, FeedbackItem
       "Get-MgUser -CountVariable cv",
       CreateAqFeedbackItem(["Get-MgUser -CountVariable cv"])
     );
-    // // Error: Use of $count in a filter expression
-    // Add(
-    //   @"function Get-MgUser {throw $([Management.Automation.ErrorRecord]::new([Exception]::new('FeedbackTestLastError'),
-    //     'Request_BadRequest',
-    //     'InvalidOperation',
-    //     [Test.FakeTargetObject]::new('assignedLicenses/$count eq 0')
-    //   ))}",
-    //   @"Get-MgUser -Filter assignedLicenses/$count eq 0",
-    //   CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"])
-    // );
-  }
-}
 
-public class FeedbackProviderErrorTestsData : TheoryData<string, string, string, string, FeedbackItem?>
-{
-  public FeedbackProviderErrorTestsData()
-  {
-    // Use of $count in a filter expression
+    // Error: Use of $count in a filter expression
     Add(
-      @"Get-MgUser -Filter assignedLicenses/$count eq 0",
-      "assignedLicenses/$count eq 0",
-      "Request_BadRequest,Get_MgUser",
-      "FakeMessage",
-      CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        "FakeMessage",
+        "Request_BadRequest,Get_MgUser",
+        "assignedLicenses/$count eq 0"
+      ),
+      @"Get-MgUser -Filter 'assignedLicenses/$count eq 0'",
+      CreateAqFeedbackItem(["Get-MgUser -Filter 'assignedLicenses/$count eq 0'"])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -Filter assignedLicenses/$count eq 0 -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      "Get-MgUser -Filter assignedLicenses/$count eq 0 -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of $search
+    // Error: Use of $search
+    script = @"Get-MgUser -Search ""displayName:John""";
     Add(
-      @"Get-MgUser -Search ""displayName:John""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      SearchUnsupportedError,
-      CreateAqFeedbackItem([@"Get-MgUser -Search ""displayName:John"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        SearchUnsupportedError,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -Search ""displayName:John"" -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of $endsWith
+    // Error: Use of $endsWith
+    script = @"Get-MgUser -filter ""endsWith(mail, '@outlook.com')""";
     Add(
-      @"Get-MgUser -filter ""endsWith(mail, '@outlook.com')""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      FilterEndsWithError,
-      CreateAqFeedbackItem([@"Get-MgUser -filter ""endsWith(mail, '@outlook.com')"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        FilterEndsWithError,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -filter ""endsWith(mail, '@outlook.com')"" -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of $filter and $orderby in the same query
+    // Error: Use of $filter and $orderby in the same query
+    script = @"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname""";
     Add(
-      @"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      SortingNotSupportedError,
-      CreateAqFeedbackItem([@"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        SortingNotSupportedError,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -filter ""displayname eq 'test'"" -orderby ""displayname"" -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of ne operator
+    // Error: Use of ne operator
+    script = @"Get-MgUser -filter ""displayname ne null""";
     Add(
-      @"Get-MgUser -filter ""displayname ne null""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      NotEqualsMatch,
-      CreateAqFeedbackItem([@"Get-MgUser -filter ""displayname ne null"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        NotEqualsMatch,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get - MgUser - filter ""displayname ne null""-CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of NOT operator
+    // Error: Use of NOT operator
+    script = @"Get-MgUser -filter ""NOT(displayname eq 'test')""";
     Add(
-      @"Get-MgUser -filter ""NOT(displayname eq 'test')""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      ConsistencyHeaderMissingError,
-      CreateAqFeedbackItem([@"Get-MgUser -filter ""NOT(displayname eq 'test')"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        ConsistencyHeaderMissingError,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -filter ""NOT(displayname eq 'test')"" -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 
-    // Use of NOT and StartsWith operator
+    // Error: Use of NOT and StartsWith operator
+    script = @"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))""";
     Add(
-      @"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))""",
-      string.Empty,
-      "Request_UnsupportedQuery,Get_MgUser",
-      ConsistencyHeaderMissingError,
-      CreateAqFeedbackItem([@"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))"""])
+      GetErrorMockWithFilter(
+        "Get-MgUser",
+        ConsistencyHeaderMissingError,
+        "Request_UnsupportedQuery,Get_MgUser",
+        null
+      ),
+      script,
+      CreateAqFeedbackItem([script])
     );
+    // Fixed
     Add(
-      @"Get-MgUser -filter ""NOT (startswith(displayname, 'test'))"" -CountVariable cv -ConsistencyLevel Eventual",
-      string.Empty,
-      string.Empty,
-      string.Empty,
+      getMgUserMock,
+      $"{script} -CountVariable cv -ConsistencyLevel Eventual",
       null
     );
 

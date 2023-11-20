@@ -29,7 +29,7 @@ public class AqFeedbackProvider : IFeedbackProvider
 
   public FeedbackItem? GetFeedback(FeedbackContext context, CancellationToken token)
   {
-    HashSet<string> graphCommands = new HashSet<string>();
+    HashSet<string> graphCommands = [];
     if (context.LastError is not null)
     {
       var result = InspectGraphError(context.LastError);
