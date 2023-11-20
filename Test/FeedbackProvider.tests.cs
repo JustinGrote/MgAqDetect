@@ -1,71 +1,98 @@
-
 using MicrosoftGraphAdvancedQueryFeedbackProvider;
-
-using System.Management.Automation;
-using System.Management.Automation.Subsystem.Feedback;
 
 using static MicrosoftGraphAdvancedQueryFeedbackProvider.AqFeedbackProvider;
 using static MicrosoftGraphAdvancedQueryFeedbackProvider.Strings;
 
+using System.Management.Automation;
+using System.Management.Automation.Subsystem.Feedback;
+
 namespace Test;
 
-public class FeedbackProviderSuccessTests
+public class FeedbackProviderTests
 {
   [Theory]
-  [ClassData(typeof(FeedbackProviderSuccessTestsData))]
-  public void GetFeedback_ReturnsCorrectResult(string script, FeedbackItem? expected)
+  [ClassData(typeof(FeedbackProviderTestsData))]
+  public void FeedbackProviderE2E(string mock, string script, FeedbackItem? expected)
   {
     // Arrange
-    AqFeedbackProvider provider = new();
-    var contextMock = Substitute.For<FeedbackContextAdapter>();
-    contextMock.CommandLineAst.Returns(ScriptBlock.Create(script).Ast);
+    using var ps = PowerShell.Create();
 
-    // Act
-    var actual = provider.GetFeedbackImpl(contextMock);
+    // Add the mock function to the runspace.
+    ps.AddScript(mock).Invoke();
+    ps.Commands.Clear();
 
-    // Assert
-    actual.Should().BeEquivalentTo(expected);
-  }
-}
+    // Register the feedback provider using its own module import mechanism.
+    Init init = new();
+    init.OnImport();
 
-public class FeedbackProviderSuccessTestsData : TheoryData<string, FeedbackItem?>
-{
-  public FeedbackProviderSuccessTestsData()
-  {
-    Add("Get-Nothing", null);
-    Add("Get-MgUser", null);
-    Add("Get-MgUser -CountVariable cv -ConsistencyLevel Eventual", null);
-    Add(
-      "Get-MgUser -CountVariable",
-      CreateAqFeedbackItem(["Get-MgUser -CountVariable"])
-    );
-  }
-}
-
-public class FeedbackProviderErrorTests
-{
-  [Theory]
-  [ClassData(typeof(FeedbackProviderErrorTestsData))]
-  public void GetFeedback_ReturnsCorrectResult(string script, string filter, string errorId, string errorMessage, FeedbackItem? expected)
-  {
-    // Arrange
-    AqFeedbackProvider provider = new();
-
-    FeedbackContextAdapter contextMock = Substitute.For<FeedbackContextAdapter>();
-    contextMock.CommandLineAst.Returns(ScriptBlock.Create(script).Ast);
-    contextMock.ErrorId.Returns(errorId);
-    contextMock.ErrorCommand.Returns(script);
-    contextMock.ErrorMessage.Returns(errorMessage);
-    contextMock.ErrorTarget.Returns(new
+    try
     {
-      Filter = filter
-    });
+      // Act
+      var invokeResult = ps.AddScript(script)
+        .Invoke(input: null, new() { AddToHistory = true });
 
-    // Act
-    var actual = provider.GetFeedbackImpl(contextMock);
+      //MaxValue timeout is used to allow for debugging
+      var feedbackResult = FeedbackHub.GetFeedback(ps.Runspace, int.MaxValue) ?? [];
 
-    // Assert
-    actual.Should().BeEquivalentTo(expected);
+      // Assert
+      if (expected is null)
+      {
+        feedbackResult.Should().BeEmpty();
+        return;
+      }
+
+      var feedbackItems = from f in feedbackResult
+                          where f.Id == init.ProviderId
+                          select f.Item;
+      feedbackItems.Should().HaveCount(1);
+      feedbackItems.Single().Should().BeEquivalentTo(expected);
+    }
+    finally
+    {
+      // Subsystem cleanup
+      init.OnRemove(null);
+    }
+  }
+}
+
+public class FeedbackProviderTestsData : TheoryData<string, string, FeedbackItem?>
+{
+  public FeedbackProviderTestsData()
+  {
+    // No feedback needed
+    Add(
+      "function Get-Nothing {}",
+      "Get-Nothing",
+      null
+    );
+    // No feedback needed
+    Add(
+      "function Get-MgUser {}",
+      "Get-MgUser",
+      null
+    );
+    // Already using correct params
+    Add(
+      "function Get-MgUser {}",
+      "Get-MgUser -CountVariable cv -ConsistencyLevel Eventual",
+      null
+    );
+    // Missing ConsistencyLevel Eventual and will error
+    Add(
+      "function Get-MgUser {}",
+      "Get-MgUser -CountVariable cv",
+      CreateAqFeedbackItem(["Get-MgUser -CountVariable cv"])
+    );
+    // Error: Use of $count in a filter expression
+    // Add(
+    //   @"function Get-MgUser {Write-Error -ErrorRecord $([ErrorRecord]::new([Exception]::new(),
+    //     'Request_BadRequest',
+    //     'InvalidOperation',
+    //     'assignedLicenses/$count eq 0'
+    //   ))}",
+    //   @"Write-Error 'oops'",
+    //   CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"])
+    // );
   }
 }
 

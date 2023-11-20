@@ -176,7 +176,7 @@ public static class Strings
 public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup
 {
   // Uniquely identifies this provider. This could be randomly generated but having it static helps with tracing/troubleshooting
-  Guid ProviderId { get; } = new Guid("c58b84a7-bc73-4bbc-a540-5f5d031cfb0a");
+  public Guid ProviderId { get; } = new Guid("c58b84a7-bc73-4bbc-a540-5f5d031cfb0a");
   private AqFeedbackProvider? _provider;
   AqFeedbackProvider provider => _provider ??= new() { Id = ProviderId };
 
@@ -184,7 +184,7 @@ public class Init : IModuleAssemblyInitializer, IModuleAssemblyCleanup
   {
     RegisterSubsystem(FeedbackProvider, provider);
   }
-  public void OnRemove(PSModuleInfo psModuleInfo)
+  public void OnRemove(PSModuleInfo? psModuleInfo)
   {
     UnregisterSubsystem<IFeedbackProvider>(ProviderId);
   }
