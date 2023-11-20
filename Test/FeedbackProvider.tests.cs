@@ -28,8 +28,16 @@ public class FeedbackProviderTests
     try
     {
       // Act
-      var invokeResult = ps.AddScript(script)
-        .Invoke(input: null, new() { AddToHistory = true });
+      try
+      {
+        var invokeResult = ps.AddScript(script)
+          .Invoke(input: null, new() { AddToHistory = true });
+      }
+      catch (Exception err)
+      {
+        // Ignore terminating errors in the Invocation, any that occur should get captured into the LastError feedback. You can breakpoint this step to debug what error is occuring if necessary.
+        var error = err;
+      }
 
       //MaxValue timeout is used to allow for debugging
       var feedbackResult = FeedbackHub.GetFeedback(ps.Runspace, int.MaxValue) ?? [];
@@ -54,6 +62,9 @@ public class FeedbackProviderTests
     }
   }
 }
+
+// This is used inside the runspace to emulate a TargetObject
+public record FakeTargetObject(string Filter);
 
 public class FeedbackProviderTestsData : TheoryData<string, string, FeedbackItem?>
 {
@@ -83,14 +94,14 @@ public class FeedbackProviderTestsData : TheoryData<string, string, FeedbackItem
       "Get-MgUser -CountVariable cv",
       CreateAqFeedbackItem(["Get-MgUser -CountVariable cv"])
     );
-    // Error: Use of $count in a filter expression
+    // // Error: Use of $count in a filter expression
     // Add(
-    //   @"function Get-MgUser {Write-Error -ErrorRecord $([ErrorRecord]::new([Exception]::new(),
+    //   @"function Get-MgUser {throw $([Management.Automation.ErrorRecord]::new([Exception]::new('FeedbackTestLastError'),
     //     'Request_BadRequest',
     //     'InvalidOperation',
-    //     'assignedLicenses/$count eq 0'
+    //     [Test.FakeTargetObject]::new('assignedLicenses/$count eq 0')
     //   ))}",
-    //   @"Write-Error 'oops'",
+    //   @"Get-MgUser -Filter assignedLicenses/$count eq 0",
     //   CreateAqFeedbackItem(["Get-MgUser -Filter assignedLicenses/$count eq 0"])
     // );
   }
