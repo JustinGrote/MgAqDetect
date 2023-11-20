@@ -35,7 +35,7 @@ BeforeAll {
     )
     try {
       $ps = [powershell]::Create($state)
-      [void]$ps.AddScript('Get-MgUser -CountVariable cv').Invoke(
+      [void]$ps.AddScript($Script).Invoke(
         $null,
         [PSInvocationSettings]@{ AddToHistory = $true }
       )
@@ -53,19 +53,40 @@ BeforeAll {
   $SCRIPT:fpInit = [MicrosoftGraphAdvancedQueryFeedbackProvider.Init]::new()
 }
 
-Describe 'Feedback Provider Test' {
+Describe 'Feedback Provider Tests' {
   BeforeAll {
     #Register the feedback provider via module init
     $fpInit.OnImport()
   }
-  It 'Get-MgUser with only count variable should return feedback' {
-    $feedbackItems = Add-Fake 'Get-MgUser'
-    | Test-FeedbackProvider -Script { Get-MgUser -CountVariable cv } -ProviderId $fpInit.ProviderId
 
-    $feedbackItems | Should -HaveCount 1
-    $feedbackItems.RecommendedActions | Should -HaveCount 1
-    $feedbackItems.RecommendedActions[0] | Should -Be 'Get-MgUser -CountVariable cv'
+  Context 'AST Based Tests' {
+    It 'Non Mg Command' {
+      $actual = Add-Fake 'Get-ChildItem' {}
+      | Test-FeedbackProvider -Script { Get-ChildItem -Path 'C:\' } -ProviderId $fpInit.ProviderId
+
+      $actual | Should -BeNullOrEmpty
+    }
+    It 'No Feedback Needed' {
+      $actual = Add-Fake 'Get-MgUser' {}
+      | Test-FeedbackProvider -Script { Get-MgUser } -ProviderId $fpInit.ProviderId
+      $actual | Should -BeNullOrEmpty
+    }
+    It 'Get-MgUser with only count variable' {
+      $actual = Add-Fake 'Get-MgUser'
+      | Test-FeedbackProvider -Script { Get-MgUser -CountVariable cv } -ProviderId $fpInit.ProviderId
+
+      $actual | Should -HaveCount 1
+      $actual.RecommendedActions | Should -HaveCount 1
+      $actual.RecommendedActions[0] | Should -Be 'Get-MgUser -CountVariable cv'
+    }
+    It 'Get-MgUser with only count variable: FIXED' {
+      $actual = Add-Fake 'Get-MgUser'
+      | Test-FeedbackProvider -Script { Get-MgUser -CountVariable cv -ConsistencyLevel eventual } -ProviderId $fpInit.ProviderId
+
+      $actual | Should -BeNullOrEmpty
+    }
   }
+
   AfterAll {
     #Unregister the feedback provider via module unload
     $fpInit.OnRemove($null)

@@ -12,6 +12,14 @@
       "attachDotnetDebugger": true
     },
     {
+      "name": "PowerShell: Pester",
+      "type": "PowerShell",
+      "request": "launch",
+      "script": "Invoke-Pester",
+      "createTemporaryIntegratedConsole": true,
+      "attachDotnetDebugger": true
+    },
+    {
       "name": ".NET Core Attach",
       "type": "coreclr",
       "request": "attach"
